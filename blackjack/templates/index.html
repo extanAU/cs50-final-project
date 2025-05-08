@@ -110,7 +110,7 @@
 
       // Update card displays:
       // Dealer's cards:
-      document.getElementById("dealerCard1").src = "/blackjack/static/cards/" + result.dealer_initial[0] + ".png";
+      document.getElementById("dealerCard1").src = "/static/cards/" + result.dealer_initial[0] + ".png";
       document.getElementById("dealerCard2").src = result.dealer_initial[1] === "Hidden"
           ? "/static/cards/back.jpg"
           : "/static/cards/" + result.dealer_initial[1] + ".png";
