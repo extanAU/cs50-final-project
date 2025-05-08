@@ -52,6 +52,82 @@ def is_blackjack(cards):
         return vals == [1, 10]  # one Ace (counted as 1 here) and one 10 or face card
     return False
 
+# BASIC STRATEGY DECISION LOGIC (TO BE CHANGED)
+
+def basic_strategy_decision(player_cards, dealer_up_card):
+    total, soft = evaluate_hand(player_cards)
+    dealer_value = dealer_up_card.value()
+    # Check for pair
+    if len(player_cards) == 2 and player_cards[0].rank == player_cards[1].rank:
+        rank = player_cards[0].rank
+        # Pairs: simplified rules for demonstration
+        if rank == 'A' or rank == '8':
+            return 'P'  # always split aces and eights
+        if rank in ['10', 'J', 'Q', 'K']:
+            return 'S'  # never split tens (stand on 20)
+        if rank == '5':
+            # Pair of 5s is essentially a hard 10, better to double against certain dealer cards
+            if dealer_value in range(2, 10):
+                return 'D'
+            else:
+                return 'H'
+        if rank == '9':
+            # Split 9s except when dealer has 7, 10, or Ace (then stand on 18)
+            if dealer_value in [7, 10, 11]:
+                return 'S'
+            else:
+                return 'P'
+        # Default for other pairs (2,3,4,6,7): split if dealer up-card is 2-7, otherwise hit.
+        if dealer_value in range(2, 8):
+            return 'P'
+        else:
+            return 'H'
+    # If not a pair (or after handling split logic), handle soft totals vs hard totals:
+    if soft:
+        # Soft totals (one Ace counted as 11)
+        if total == 17:  # e.g., A-6 (soft 17)
+            if dealer_value in range(3, 7):
+                return 'D'  # double on soft 17 against 3-6 if allowed
+            else:
+                return 'H'
+        if total in range(13, 18):  # A-2 to A-6 (soft 13 to soft 18)
+            if dealer_value in range(4, 7):
+                return 'D'  # double soft 13-18 vs dealer 4-6
+            else:
+                return 'H'
+        if total >= 19:
+            return 'S'  # soft 19 or more, always stand (soft 18 stands except vs certain dealer values, simplified)
+    else:
+        # Hard totals (no ace or ace counted as 1)
+        if total <= 8:
+            return 'H'  # always hit hard 8 or less
+        if total == 9:
+            if dealer_value in range(3, 7):
+                return 'D'  # double 9 vs dealer 3-6
+            else:
+                return 'H'
+        if total == 10:
+            if dealer_value < 10:
+                return 'D'  # double 10 vs dealer 2-9
+            else:
+                return 'H'
+        if total == 11:
+            return 'D'  # always double 11 (unless dealer has Ace which might be a 10-value check, but we'll double anyway)
+        if total == 12:
+            if dealer_value in range(4, 7):
+                return 'S'  # stand on hard 12 vs 4-6
+            else:
+                return 'H'
+        if total in range(13, 17):
+            if dealer_value <= 6:
+                return 'S'  # stand on 13-16 vs dealer 2-6 (dealer likely to bust)
+            else:
+                return 'H'  # hit 13-16 vs dealer 7-A
+        if total >= 17:
+            return 'S'  # always stand on hard 17+
+    # Default fallback
+    return 'H'
+
 def play_round(deck):
     """Simulate one round of blackjack. Return a dict with details of the round."""
     # Initial deal
