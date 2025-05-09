@@ -1,6 +1,13 @@
 # app.py
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request, redirect, url_for
 from blackjack.game_logic import Deck, play_round
+
+# Flask Application Initialization and Route Definitions
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+from datetime import datetime
+import os
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 
