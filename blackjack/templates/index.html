@@ -1,210 +1,94 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Blackjack Bot</title>
-  <!-- Include Bootstrap CSS for easy styling -->
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <meta charset="UTF-8">
+  <title>Blackjack</title>
   <style>
-    /* Custom CSS for card images and layout */
-    .card-img {
-      width: 80px;
-      height: auto;
-      margin: 5px;
-    }
-    #dealer-area, #player-area {
-      min-height: 120px;
-      margin-bottom: 20px;
-      background-image: url('/static/feltbg.jpg');
-      background-size: cover;
-      background-repeat: no-repeat;
-      background-position: center;
-      padding: 10px;
-      border-radius: 10px;
-      box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
-    }
-    #log {
-      max-height: 150px;
-      overflow-y: auto;
-      background: #f8f9fa;
-      padding: 10px;
-      font-family: monospace;
-    }
-    .boardtext {
-      font-size: 1.2em;
-      font-weight: bold;
-      color: #fff;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-    }
-    
+    body { font-family: sans-serif; padding: 20px; }
+    .cards { font-weight: bold; }
+    button { margin: 5px; padding: 10px; }
+    #stats, #message { margin-top: 20px; }
   </style>
 </head>
-<body class="p-4">
-  <div class="container">
-    <h1 class="mb-4">Blackjack Bot (Basic Strategy)</h1>
-    <!-- Dealer section -->
-    <div id="dealer-area" class="mb-3">
-      <h4 class="boardtext">Dealer's Hand:</h4>
-      <img id="dealerCard1" class="card-img" src="" alt="Dealer card 1">
-      <img id="dealerCard2" class="card-img" src="" alt="Dealer card 2">
-      <span id="dealerTotal"  class="boardtext"></span>
-    </div>
-    <!-- Player/Bot section -->
-    <div id="player-area" class="mb-3">
-      <h4 class="boardtext">Player Bot's Hand:</h4>
-      <div id="playerCards">
-        <!-- Player cards will be inserted here -->
-      </div>
-      <span id="playerTotal"  class="boardtext"></span>
-    </div>
-    <!-- Bot decision log -->
-    <h5>Decision Log:</h5>
-    <div id="log" class="mb-3"></div>
-    <!-- Controls -->
-    <button id="dealButton" class="btn btn-primary">Play Round</button>
-    <button id="autoButton" class="btn btn-secondary">Play 10 Rounds</button>
-    <!-- Chart section -->
-    <h5 class="mt-4">Win/Loss History:</h5>
-    <canvas id="statsChart" width="400" height="200"></canvas>
-  </div>
+<body>
 
-  <!-- Include Chart.js library -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
-    // Initialize Chart.js for win/loss history (line chart of cumulative net wins)
-    const ctx = document.getElementById('statsChart').getContext('2d');
-    const statsChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: [],           // rounds
-        datasets: [{
-          label: 'Cumulative Net Wins',
-          data: [],           // net wins = (#wins - #losses) over rounds
-          backgroundColor: 'rgba(54, 162, 235, 0.2)',
-          borderColor: 'rgba(54, 162, 235, 1)',
-          borderWidth: 2,
-          fill: false,
-          lineTension: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        scales: {
-          xAxes: [{ display: true, scaleLabel: { display: true, labelString: 'Round' } }],
-          yAxes: [{ display: true, scaleLabel: { display: true, labelString: 'Net Wins' } }]
-        }
-      }
+<h1>Blackjack</h1>
+
+<div>
+  <p><strong>Dealer:</strong> <span id="dealer-cards" class="cards">--</span></p>
+  <p><strong>Player:</strong> <span id="player-cards" class="cards">--</span></p>
+</div>
+
+<div id="actions">
+  <button onclick="sendAction('hit')">Hit</button>
+  <button onclick="sendAction('stand')">Stand</button>
+  <button onclick="sendAction('double')">Double</button>
+  <button onclick="sendAction('split')">Split</button>
+  <button onclick="askBot()">Ask Bot</button>
+  <button onclick="startRound()">Start New Round</button>
+</div>
+
+<p id="message"></p>
+
+<div id="stats">
+  <h3>Stats</h3>
+  <p>Wins: <span id="wins">0</span> |
+     Losses: <span id="losses">0</span> |
+     Pushes: <span id="pushes">0</span></p>
+</div>
+
+<script>
+function startRound() {
+  fetch('/start-round', { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+      updateDisplay(data);
+      document.getElementById("message").textContent = data.message;
     });
+}
 
-    let roundCount = 0;
-    let netWins = 0;  // net wins = wins - losses
+function sendAction(action) {
+  fetch('/player-action', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ action: action })
+  })
+  .then(res => res.json())
+  .then(data => {
+    updateDisplay(data);
+    document.getElementById("message").textContent = data.message;
+    if (data.roundOver) fetchStats();
+  });
+}
 
-    // Helper function to update the chart with a new outcome
-    function updateChart(outcomeList) {
-      // outcomeList can be an array (for split outcomes) or single string
-      const outcomes = Array.isArray(outcomeList) ? outcomeList : [outcomeList];
-      outcomes.forEach(outcome => {
-        roundCount += 1;
-        if (outcome === 'win') netWins += 1;
-        if (outcome === 'lose') netWins -= 1;
-        // push data point for each hand as separate "round" for simplicity
-        statsChart.data.labels.push(roundCount);
-        statsChart.data.datasets[0].data.push(netWins);
-      });
-      statsChart.update();
-    }
+function askBot() {
+  fetch('/bot-decision')
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById("message").textContent = "Bot suggests: " + data.suggestion;
+    });
+}
 
-    // Function to play one round and update UI
-    async function playOneRound() {
-      // Fetch result from backend
-      const response = await fetch("/play-round");
-      const result = await response.json();
-      console.log(result);  // for debugging
+function fetchStats() {
+  fetch('/stats')
+    .then(res => res.json())
+    .then(stats => {
+      document.getElementById("wins").textContent = stats.wins;
+      document.getElementById("losses").textContent = stats.losses;
+      document.getElementById("pushes").textContent = stats.pushes;
+    });
+}
 
-      // Update card displays:
-      // Dealer's cards:
-      document.getElementById("dealerCard1").src = "/static/cards/" + result.dealer_initial[0] + ".png";
-      document.getElementById("dealerCard2").src = result.dealer_initial[1] === "Hidden"
-          ? "/static/cards/back.jpg"
-          : "/static/cards/" + result.dealer_initial[1] + ".png";
-      // Player cards:
-      const playerArea = document.getElementById("playerCards");
-      playerArea.innerHTML = "";  // clear previous cards
-      let playerHands = [];
-      if (Array.isArray(result.player_final[0])) {
-        // If split happened, player_final is a list of hands (list of lists)
-        playerHands = result.player_final;
-      } else {
-        playerHands = [result.player_final];
-      }
-      // Display first hand (and second if exists) in player area
-      playerHands.forEach((hand, handIndex) => {
-        hand.forEach(cardCode => {
-          const img = document.createElement("img");
-          img.className = "card-img";
-          img.src = "/static/cards/" + cardCode + ".png";
-          playerArea.appendChild(img);
-        });
-        if (handIndex === 0 && playerHands.length > 1) {
-          // add separator between split hands
-          const divider = document.createElement("span");
-          divider.innerText = " | ";  // separator
-          divider.style.margin = "0 10px";
-          playerArea.appendChild(divider);
-        }
-      });
+function updateDisplay(data) {
+  const formatCard = c => (c[0] === "?" ? "🂠" : c[0] + c[1]);
+  document.getElementById("dealer-cards").textContent = data.dealerCards.map(formatCard).join(", ");
+  document.getElementById("player-cards").textContent = data.playerHands.map(
+    hand => hand.map(formatCard).join(" ")
+  ).join(" | ");
+}
 
-      // Display totals (for clarity)
-      const playerTotalValue = Array.isArray(result.outcome) ? 
-            "(split hands)" : evaluateTotal(result.player_final); 
-      // We can compute totals on front-end if needed; for now, show placeholder or outcome.
-      document.getElementById("playerTotal").innerText = playerTotalValue;
-      document.getElementById("dealerTotal").innerText = evaluateTotal(result.dealer_final);
+window.onload = startRound;
+</script>
 
-      // Log decisions in real-time:
-      const logDiv = document.getElementById("log");
-      logDiv.innerHTML = "";  // clear old log
-      result.decisions.forEach((entry, index) => {
-        const p = document.createElement("p");
-        p.textContent = entry;
-        logDiv.appendChild(p);
-      });
-
-      // Update chart with the outcome(s)
-      updateChart(result.outcome);
-    }
-
-    // Utility to compute a hand's total from an array of card codes (e.g., ["8H","9D"])
-    function evaluateTotal(cards) {
-      // (same logic as evaluate_hand in Python, but simpler here for display)
-      let total = 0;
-      let hasAce = false;
-      cards.forEach(code => {
-        const rank = code.slice(0, -1);
-        if (rank === "A") {
-          hasAce = true;
-          total += 1;
-        } else if (["J","Q","K"].includes(rank) || rank === "10") {
-          total += 10;
-        } else {
-          total += parseInt(rank);
-        }
-      });
-      if (hasAce && total + 10 <= 21) {
-        total += 10;
-      }
-      return total;
-    }
-
-    // Event handlers for buttons
-    document.getElementById("dealButton").onclick = () => playOneRound();
-    document.getElementById("autoButton").onclick = async () => {
-      for (let i = 0; i < 10; i++) {
-        await playOneRound();
-      }
-    };
-  </script>
 </body>
 </html>
-

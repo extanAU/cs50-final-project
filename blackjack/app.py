@@ -1,60 +1,115 @@
-# app.py
-from flask import Flask, jsonify, render_template, request, redirect, url_for
-from blackjack.game_logic import Deck, play_round
+from flask import Flask, session, jsonify, request, render_template
+from blackjack.game_logic import GameState, evaluate_hand, basic_strategy_decision
+import json
 
-# Flask Application Initialization and Route Definitions
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from datetime import datetime
-import os
-from dotenv import load_dotenv
 
 app = Flask(__name__)
+app.secret_key = 'your-secret-key'  # Replace with a secure secret key
 
-# Create a single deck of cards (you can adjust number of decks)
-deck = Deck(num_decks=6)
-stats = {"wins": 0, "losses": 0, "pushes": 0, "history": []}
+# Helper to convert GameState object to JSON-friendly dict
+def serialize_game_state(game):
+    return {
+        "deck": game.deck,
+        "player_hands": game.player_hands,
+        "dealer_hand": game.dealer_hand,
+        "active_hand": game.active_hand,
+        "round_over": game.round_over,
+        "outcomes": game.outcomes
+    }
 
 @app.route("/")
 def index():
-    # Serve the main game interface
     return render_template("index.html")
 
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+# Helper to restore GameState from session
+def load_game():
+    game_data = session.get("game_state")
+    if not game_data:
+        return None
+    game = GameState()
+    game.__dict__.update(json.loads(game_data))
+    return game
 
-@app.route("/play-round")
-def play_round_route():
-    """Play one round of blackjack and return the result as JSON."""
-    result = play_round(deck)
-    # Update stats
-    # If split, result["outcome"] might be a list of outcomes
-    outcomes = result["outcome"]
-    if isinstance(outcomes, list):
-        # count each hand outcome
-        for out in outcomes:
-            if out == "win":
-                stats["wins"] += 1
-            elif out == "lose":
-                stats["losses"] += 1
-            elif out == "push":
-                stats["pushes"] += 1
-            stats["history"].append(out)
+@app.route('/start-round', methods=['POST'])
+def start_round():
+    game = GameState()
+    game.start_round()
+    session['game_state'] = json.dumps(serialize_game_state(game))
+    return jsonify({
+        "playerHands": game.player_hands,
+        "dealerCards": [game.dealer_hand[0], ("?", "?")],
+        "activeHandIndex": game.active_hand,
+        "roundOver": False,
+        "message": "New round started."
+    })
+
+@app.route('/player-action', methods=['POST'])
+def player_action():
+    action = request.json.get('action')
+    game = load_game()
+    if not game:
+        return jsonify({"error": "No active game in session"}), 400
+
+    message = ""
+    if action == "hit":
+        game.player_hit()
+        message = "You hit."
+    elif action == "stand":
+        game.player_stand()
+        message = "You stand."
+    elif action == "double":
+        game.player_double()
+        message = "You double down."
+    elif action == "split":
+        game.player_split()
+        message = "You split your hand."
     else:
-        out = outcomes
-        if out == "win":
-            stats["wins"] += 1
-        elif out == "lose":
-            stats["losses"] += 1
-        elif out == "push":
-            stats["pushes"] += 1
-        stats["history"].append(outcomes)
-    return jsonify(result)
+        return jsonify({"error": "Invalid action"}), 400
 
-@app.route("/stats")
-def stats_route():
-    """Return win/loss statistics."""
-    # We can provide total counts and a history list (e.g., sequence of outcomes)
-    return jsonify(stats)
+    results = None
+    if game.round_over:
+        results = game.outcomes
+        stats = session.get("stats", {"wins": 0, "losses": 0, "pushes": 0, "history": []})
+        for outcome in results:
+            if outcome == "win":
+                stats["wins"] += 1
+            elif outcome == "loss":
+                stats["losses"] += 1
+            elif outcome == "push":
+                stats["pushes"] += 1
+        stats["history"].append({
+            "playerHands": game.player_hands,
+            "dealerHand": game.dealer_hand,
+            "outcomes": results
+        })
+        session["stats"] = stats
+        message = f"Round over. Result(s): {', '.join(results)}"
 
+    session['game_state'] = json.dumps(serialize_game_state(game))
+    dealer_cards = game.dealer_hand if game.round_over else [game.dealer_hand[0], ("?", "?")]
 
+    return jsonify({
+        "playerHands": game.player_hands,
+        "dealerCards": dealer_cards,
+        "activeHandIndex": game.active_hand,
+        "roundOver": game.round_over,
+        "results": results,
+        "message": message
+    })
+
+@app.route('/bot-decision', methods=['GET'])
+def bot_decision():
+    game = load_game()
+    if not game:
+        return jsonify({"error": "No active game in session"}), 400
+    current_hand = game.player_hands[game.active_hand]
+    dealer_up = game.dealer_hand[0]
+    suggestion = basic_strategy_decision(current_hand, dealer_up)
+    return jsonify({"suggestion": suggestion})
+
+@app.route('/stats', methods=['GET'])
+def stats():
+    return jsonify(session.get("stats", {"wins": 0, "losses": 0, "pushes": 0, "history": []}))
+
+if __name__ == '__main__':
+    app.run(debug=True)
