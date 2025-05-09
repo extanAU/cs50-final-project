@@ -16,7 +16,13 @@
     #dealer-area, #player-area {
       min-height: 120px;
       margin-bottom: 20px;
-    
+      background-image: url('/static/feltbg.jpg');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
     }
     #log {
       max-height: 150px;
@@ -25,26 +31,32 @@
       padding: 10px;
       font-family: monospace;
     }
+    .boardtext {
+      font-size: 1.2em;
+      font-weight: bold;
+      color: #fff;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }
     
   </style>
 </head>
-<body class="p-4"  style="background-image: url('Misc_images/feltbg.jpg');">
+<body class="p-4">;">
   <div class="container">
     <h1 class="mb-4">Blackjack Bot (Basic Strategy)</h1>
     <!-- Dealer section -->
     <div id="dealer-area" class="mb-3">
-      <h4>Dealer's Hand:</h4>
+      <h4 class="boardtext">Dealer's Hand:</h4>
       <img id="dealerCard1" class="card-img" src="" alt="Dealer card 1">
       <img id="dealerCard2" class="card-img" src="" alt="Dealer card 2">
-      <span id="dealerTotal" class="ml-2"></span>
+      <span id="dealerTotal"  class="boardtext"></span>
     </div>
     <!-- Player/Bot section -->
     <div id="player-area" class="mb-3">
-      <h4>Player Bot's Hand:</h4>
+      <h4 class="boardtext">Player Bot's Hand:</h4>
       <div id="playerCards">
         <!-- Player cards will be inserted here -->
       </div>
-      <span id="playerTotal" class="ml-2"></span>
+      <span id="playerTotal"  class="boardtext"></span>
     </div>
     <!-- Bot decision log -->
     <h5>Decision Log:</h5>
