@@ -1,0 +1,67 @@
+# Design
+The basic structure of our final project is split into three parts. Our frontend is the index.html file, which is where the basic html for the visual appearance of the site is stored and also where all the code, written in javascript, for manipulating the visual elements of the game - the active hand outline, the appearance of the cards, the decision log, the cumulative net wins graph, and so on. Then there's our app.py, where the flask logic that connects the frontend to the backend is stored. In this file we have all the routes via which the html in index.html can connect to the logic in game_logic.py. This involves having routes which correspond to the frontend actions of pressing the start round button, pressing the buttons for each of the player actions, requesting a piece of bot advice, and managing requests by the frontend chart for stats. Finally, the meat and bones of the game's logic is stored in game_logic.py, the functions and methods of which are then imported to app.py to be used in the various routes contained therein. We will go through each of these files in turn, explaining the key points of each in roughly the order they appear in the file itself.
+
+## Index.html
+### visual stuff in html
+The head contains some relatively basic style considerations - making the background colour of the dealer and player areas felt green was the main personal touch here, since we wanted to evoke the classic casino table vibe. Oherwise most of the style decisions were fairly workmanlike as we wanted to focus on the logic of the game rather than the aesthetics.
+
+Then in the main html we start with the region where the visual parts of the game take place. Initially the card divs are empty and the total 'p' tags are set to 0, as these are the initial states before a round has started. The content of these tags will eventually be changed by javascript code once the round has actually begun
+
+Below here are the control buttons for the player's interactions with the games. These are split into two div tags, one for the actions that actually make up a blackjack game plus a bot to suggest the optimal move  (all of these are initially disabled as we don't want playeres to be able to call the functions involved outside of a round) and the other for the round control button, that being the start new round button (an end round not being needed given that the game automatically ends once the player busts or stands). Then below that there are some more visual elements: a decision log for recording the actions that have been taken and displaying bot suggestions, and a cumulative win chart so that the player can keep track of how many rounds they've won and lost (counting doubles and splits); the inevitable downward trend of that chart after several rounds was a rather edifying display of the house edge in this game.
+
+Then below that we have the inclusion of the chart.js library, which we used in order to implement the cumulative net wins chart as mentioned. This is also the first couple lines of the javascript script, just initialising the chart in a standard way for charts of that library. The rest of the script tag is various functions to make the game run as expected. These often rely on functions and methods from the python backend, which we will explain once we get to those sections. For now, we will take them as given
+
+### first few Javascript functions 
+
+the first function is simply a helper function to call whenever we need to add data to the chart. The next is another helper function that renders the images of the cards into containers that can then be rended - this was not initially necessary when we used unicode symbols for the cards but we felt it would be better to use actual images for the cards involved. As such this takes in an array of cards and a container to render them into and then constructs the name of the image file to reference from the names of the cards inputted; we named the card image files correspondingly in order to make sure this works.
+
+### updateGameState
+After this we get to the core javascript function: the updateGameState function, which takes in the data of a new game state (this will be the JSON returned by one of the routes in app.py) and updates the game to match. 
+
+This starts by setting a collection of constants equal to the various tags that need to be manipulated to carry out the update in question. We then render the dealer's cards into the corersponding div - because the dealer's cards don't change at all while the round is still active and only change once it has to be settled this is for now relatively simple. We then render the player cards which is slightly more complicated - we have to do it for each hand just in case the hand has been split and there are multiple, we highlight the hand that is currently being played, and we have to dynamically modify the total as cards are added. We also have a fallback to just render the active hand if something goes wrong with this process, but this isn't usually necessary. Then after this there's a quick little bit of code to make sure that any new information is appended to the decision log to make it accessible to the player. 
+
+We then have an if else block based on the data of whether or not the round is over to manipulate which buttons are enabled. A design note here is that there were one or two places, in particular the logic of whether to allow splitting/doubling, where instead of associating this to the backend with some kind of can_split attribute for the gamestate we decided to handle it in the frontend just by using javascript to enable or disable the corresponding buttons. We chose to do this both because it was simpler to implement and because at one point we were having issues with the session variable storing too much data and overflowing leading to the loss of important information (in particular the state of the cards would get lost leading to the cards in play changing every time a player action was executed, which was not ideal). 
+
+Now moving into the particulars, the first block is conditional on the round being over and as such disables all buttons except the one to start a new round, then if a result is provided updates the netwins variable and updates the cumulative net wins chart accordingly. We then have an else block, that is for when the round is not over and is in progress. In this case we disable the start round button, enable the basic moves of hitting and standing, and enable asking the bot for a suggestion. The logic for doubling and splitting is marginally more complicated: we create some local boolean variables canSplit and canDouble and then set up a conditional on the current active hand's length based on which, plus some additional logic to check that the rank of the two cards in question are equal for splitting, we update the availablity of the splitting and doubling buttons accordingly.
+
+### other relevant javascript functions and scripts
+The next couple blocks are some assorted useful asynchronous functions. startRound does what it says on the tin, along with some error checking to make sure everything is working properly. playerAction is the interface between the requests for certain actions on the frontend and having the corresponding function or method be called in the /player-action route in app.py. botDecision has a similar purpose but for the ask bot button, with a bit of additional javascript logic to immediately write the result intot he decision log. fetchStats again does what it says on the tin, retrieving the game statistics in order to modify the net wins chart. Finally the script wraps up with a collection of event listeners to call the player action or bot decision function or method with the appropriate action given a particular button being pressed.
+
+## App.py
+App.py is the python file in which we use flask to connect the frontend to the backend. The first couple lines are just some session initialization. Then we define a function called serialize_game_state; the point of this is basically just to make sure that the game state is prserved when one takes an action rather than being regenerated each time; this is how the load_game function defined just below is able to function. In between we define the basic "/" route to just render our index page. Then we get on to the routes that do most of our legwork.
+
+### start-round
+The start-round route effectively just generates a GameState (a class that is defined in game_logic.py) and calls the start_round method (also defined in game_logic.py) then returns JSON with all of the relevant information about the round that is needed to run it.
+
+### player-action
+The player-action route receives which action to execute from the corresponding asynchronous function in the frontend and then loads the game currently being played in order to execute the correct action. We did this just using a big if-elif-else block which for each action executes the corresponding function or method from game_logic.py and a message noting what has been done. Then there's a block to update the results and stats once the round is over. Finally we update the session and return JSON with the new state of the game.
+
+### bot-decision
+The bot-decision route plays a similar role to the player-action route in that it interfaces between the request for an action on the frontend and the execution of that action via a function from game_logic.py. It loads the game, interprets the relevant data, calls the basic_strategy_decision function to get the recommended move, formats it in a way that will be comprehensible to the user, and then returns JSON that will get put into the decision log.
+
+### stats
+The stats route just updates the statistics of the game when necessary.
+
+## Game_logic.py
+This file is where we keep all the functions, the class, and methods for that class that are needed for the game to work.
+
+### initial functions for valuation
+The card_value function is just a helper to easily identify the value of a single card, useful for the strategy code because it allows us to quickly evaluate the dealer's single card hand without having ot call the more complicated evaluate_hand function. That functioniterates through the cards in the hand and assigns them each a value while also keeping count of the number of aces so that at the end it can use that information to check whether the hand is soft or not - that is, whether there's an ace that could turn its value into a 1 if needed by the player - and return a boolean encoding that information
+
+### GameState class
+The GameState class is the fundamental object that all the other code manipulated. It is initialized with all the various pieces of information relevant to a blackjack game. It then has a lot of methods that are core to the working of the game in that they encode the player actions of blackjack and manipulate teh gamestate accordingly. A note here for some of the nonobvious choices here: player_hands is an array of arrays of cards to account for the possibility of split hands, and multipliers is keeping track of whether each hand in that array has been doubled.
+
+#### Initialisation methods
+The first couple methods after the init one defining the class are to create a shuffled deck using basic array logic and the random library and to start a round by initializing all the attributes of the gamestate class to what they ought to be at the start of a game fo blackjack.
+
+#### Action methods
+player_hit, player_stand, player_double, and player_split are each just implementing a particular blackjack action by modifying the gamestate accordingly. Hit pops a new card from the deck and adds it to the hand and ends that hand if the total goes over 21. player_stand ends the current hand. player_double hits oce then stands in effect, with the added effect of doubling the current multiplier. Finally player_split handles creating a new hand in the hands array, popping new cards for each and modifying all of the relevant gamestate attributes to make sure there are no length mismatches.
+
+#### _dealer_play_and_settle
+This function is called once we want to end the round. It runs the standard blackjack algorithm for the dealer, hitting until the total reaches 17 or higher and then standing. We then evaluate the dealers hand and then iterate through each player hand and compare them, updating the outcomes array attribute accordingly. It then updates the round_over boolean to true.
+
+### Bot algorithm
+The basic_strategy_decision table implements the strategy advice for the bot by implementing a standard basic blackjack strategy table. We iniitially considered implementing such a table as a SQL database to be drawn on, but realised that we could be more efficient by just implementing the conditions on which the table is based as a series of conditionals thus removing the redundancy of manually entering the values for decisions that had the same underlying reason. Notice that there are some additional conditionals based on the length of the player hand to ensure that the bot only recommends doubling when it can be done, namely when the player has 2 cards in their hands.
+
+## Conclusion
+The collection of these three files, along with the static folder containing the card images and the init python function that's there just for some setup reasons, then consists of our final project. 
