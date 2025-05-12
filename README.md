@@ -1,4 +1,7 @@
 # cs50-final-project
+
+https://www.youtube.com/watch?v=7KcytwumfdU&ab_channel=EthanTan
+
 ## Project Name: Blackjack!
 Ethan Tan & Christoph von Pezold
 
