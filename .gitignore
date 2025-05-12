@@ -1,6 +1,7 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*.pyc
 *$py.class
 
 # Virtual environment
@@ -9,6 +10,9 @@ env/
 ENV/
 .venv/
 .ENV/
+
+# Flask Session
+.flask_session/
 
 # Flask cache and instance folders
 instance/
