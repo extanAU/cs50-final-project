@@ -1,31 +1,86 @@
 # cs50-final-project
-BlackjackBot! 
-
+## Project Name: Blackjack!
 Ethan Tan & Christoph von Pezold
 
-Planned Website Outlook: 
-- Login (user/password with error message -> joker error message?)
-- Home Page -> a "play" and three accordions on about us, what the game is/how to use it, why we wanted to code this game, what math went into the coding of this game -> Christoph can start to write this up? 
-- Blackjack Game (normal interface with buttons for actions e.g. hit/stand/deal/split/double/increase bet with slider, chip counter and BOT mode, both basic and advanced help)
-- User (showing name, password, chip counter, "reset" button to regain 100 chips and counter )
+Welcome to the Blackjack!, a full‑stack casino‑style card game built with Flask and JS!  
+This README will guide you through everything you need to know to install, configure, and play the game locally. 
 
+## Features
+1. Interactive Blackjack gameplay: Hit, Stand, Double, Split
+2. Visual card display: Real card images on a felt‑style background.
+3. Specially coded-bot that provides suggestions based on the optimal move in a given position
+4. Decision log: Step‑by‑step action transcript.
+5. Performance chart: Cumulative net win tracker rendered with Chart.js.
+6. Session‑based play: Uses Flask’s session for per‑user game state and statistics.
 
-To Do List (In Pseudocode):
-- Figure out Login System + User Database (probably same as finance, just pull the code out)
-- Code up a basic home page with bootstrap and accordions (make it as fancy as possible with templates)
-- Code the "user" interface -> just showing the user details and the chip counter/reset button, should start with 100 chips 
-- Encode blackjack logic and map cards to the visual static JPEGs (animate hit/stand/double/split/bust)
-    - Specifically make the "actions" for blackjack work and also create a viable "house" -> one that hits until 17 then stands 
-    - Note: once we have this, we basically already have a working game which is great 
-- Encode the "bot" which is the hard part (two parts to this as well)
-    - There will be the "easy" bot -> where basically you calculate the number/size of the cards you already have, then build a SQL table using Flask that literally just matches the key for each of the information given to you, then just spits out an output (refer to the tables which we found online that encodes that information, yippee) -> bot should also tell you how much to bet, specifically around 1-2% but goes up to 5-10% depending on the count of the deck (see below) 
-    - To BUILD UP this easy bot, we should incorporate the idea of "counting cards" -> ie. create a toggled "count" which counts 2-6 as +1 and 10-K as -1, then it will tell you how much to size the bet depending on that given count 
-    - Then there will be a "hard" bot (we will actually have to do math for this lol) that will create an array or table that keeps track of every single hand that is dealt and just what cards are still in the deck (assuming a six deck casino) = we can also change the number of decks the casino is using as well maybe? from one to eight? that is something else entirely 
+## Prerequisites
+- Contained by downloading requirements.txt
+    - To do this, navigate to the CS50-Final-Project directory, then input
+    - pip install -r requirements.txt
+- To do this, you must ensure that Python is installed on your operating system
+- To check if pip is installed run this command in your terminal
+    - pip --version
+- If Python is installed but Pip is missing, run this command
+    - python -m ensurepip --upgrade
+- Basic requirements include Flask, dotenv, a modern web browser (Chrome/Firefox/Safari)
 
-static: 
-- Find bootstrap template we like for homepage + flask/Jinja/CSS code -> this is going to be for our homepage 
-- Add in nice felt covers for board (and pile of chips maybe)  
+## Installation
+1. Clone the cs50-final-project repository from GitHub, or download from Gradescope
+2. Create and activate a virtual environment
+   - python3 -m venv venv
+   - source venv/bin/activate    # on macOS/Linux
+   - .\venv\Scripts\activate   # on Windows PowerShell
+3. Install Dependencies
+- pip install -r requirements.txt
+4. IF you wish to use server-side sessions, add
+- Flask-Session>=0.4.0
+then
+- pip install Flask-Session
 
-Planning: 
-- Encode everything up until the actual "bot" by Friday/Saturday
-- By Sunday, the basic game should at least be up. Sunday we can spend tweaking or building up the bot -> also note we can do it after as well a little just to debug it if necessary 
+## Running the Application
+With your virtual environment activated: 
+- export FLASK_APP=blackjack.app       # macOS/Linux
+- set FLASK_APP=blackjack.app          # Windows
+- flask run                             # runs on http://localhost:5000
+- OR 
+- flask --app blackjack.app run
+
+For Debug Mode and Auto-Reload:
+flask --debug run
+
+Once Running, Open Browser To:
+http://localhost:5000
+
+## How to Play Blackjack
+1. Start a new round by clicking Start New Round.
+
+2. Player action buttons (Hit, Stand, Double, Split) light up when legal:
+
+- Hit: Draw another card.
+
+- Stand: End your turn, let the dealer play.
+
+- Double: Double your bet, draw one more card, then stand.
+
+- Split: Split a starting pair into two hands (only on first two cards).
+
+- Ask Bot: Request a recommended move according to basic strategy.
+
+3. Decision Log: See each action recorded step by step.
+
+4. Cumulative Net Wins: Chart tracks wins minus losses over rounds.
+
+5. After each round ends, you can start another or let the bot take over.
+
+## Troubleshooting
+- Cookie Too Large warning: Use Flask‑Session or reduce session data size (see Configuration).
+
+- Asset 404 Errors: Ensure static/cards/ contains all 52 card images plus back.png.
+
+- Venv Errors: Delete files labelled "venv" in directory, deactivate venv by running "deactive" in terminal, and reactivate venv from instructions above
+
+- Port Already in Use: Change port with: flask run --port 5001 (or any other port) 
+
+## License
+Feel free to adapt and share! Thank you for playing and reviewing this project.
+
